@@ -1,7 +1,12 @@
-const puppeteer = require('puppeteer');
+const puppeteer = require('puppeteer-extra');
+const StealthPlugin = require('puppeteer-extra-plugin-stealth');
+puppeteer.use(StealthPlugin());
+
 // const proxyChain = require('proxy-chain');
 const fs = require('fs');
+
 const readline = require('readline');
+const { executablePath } = require('puppeteer');
 
 // Path to the text file
 const filePath = 'proxies.txt';
@@ -10,10 +15,13 @@ const filePath = 'proxies.txt';
 async function processProxy(proxy, index) {
   const proxyUrl = `http://${proxy}`;
   console.log(`Using proxy: ${proxyUrl}`);
-
+  const executable_path = ""
+  const usr_directory = ""
+  
   try {
     const browser = await puppeteer.launch({
-      headless: false,
+      headless: false, executablePath: executable_path,
+      // userDataDir: usr_directory, 
       args: [`--proxy-server=${proxyUrl}`],
     });
 
@@ -27,16 +35,22 @@ async function processProxy(proxy, index) {
     }, timeout);
 
     try {
-      await page.goto('https://www.google.com', { waitUntil: 'networkidle2' });
+      await page.goto('https://bot.sannysoft.com/', { waitUntil: 'networkidle2' });
       await page.screenshot({ path: `example-${index}.png` });
-    } catch (error) {
-      console.error(`Error navigating with proxy ${proxyUrl}:`, error);
-    } finally {
+      
+      // If page.goto succeeds, clear the timer and return true
       clearTimeout(timer);
       await browser.close();
+      return true;
+    } catch (error) {
+      console.error(`Error navigating with proxy ${proxyUrl}:`, error);
+      clearTimeout(timer);
+      await browser.close();
+      return false;
     }
   } catch (error) {
     console.error(`Error with proxy ${proxyUrl}:`, error);
+    return false;
   }
 }
 
@@ -56,12 +70,16 @@ async function readProxiesAndProcess() {
     proxies.push(line);
   }
 
-  // Process each proxy
+  // Process each proxy until a successful one is found
   for (let i = 0; i < proxies.length; i++) {
-    await processProxy(proxies[i], i);
+    const success = await processProxy(proxies[i], i);
+    if (success) {
+      console.log(`Successful proxy found: ${proxies[i]}`);
+      break; // Stop checking other proxies
+    }
   }
 
-  console.log('Finished processing all proxies');
+  console.log('Finished processing proxies');
 }
 
 // Start the process
